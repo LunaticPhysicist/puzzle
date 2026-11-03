@@ -58,6 +58,7 @@
   .gate-input:focus{border-color:#d9c8a6;box-shadow:0 0 0 3px rgba(217,200,166,.14)}
   .gate-submit{cursor:pointer;margin-top:13px;width:100%;padding:16px;border:0;border-radius:12px;background:#e7dbc3;color:#17202a;font:600 1rem system-ui}
   .gate-submit:hover{background:#fff0d3}
+  .gate-submit:disabled,.gate-input:disabled{opacity:.5;cursor:not-allowed}
   .gate-feedback{min-height:1.5rem;margin:15px 0 0;color:#ffc1bd;font-size:.87rem}
   body.unlocked .gate{display:none}
   @media (prefers-reduced-motion:no-preference){.gate-card{animation:gate-in .65s ease both}@keyframes gate-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}}
@@ -122,18 +123,80 @@
   const form=document.getElementById('gate-form');
   const answer=document.getElementById('gate-answer');
   const feedback=document.getElementById('gate-feedback');
+  const button=form.querySelector('button');
+  const KEY='puzzle_acertijo_1_cooldown_until';
+  const DAY=24*60*60*1000;
+  let fallbackUntil=0;
+  const normalize=text=>text.toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9\s]/g,' ')
+    .replace(/\s+/g,' ').trim();
+  const expected=[
+    'eres especial te quiero sara',
+    'eres muy especial te quiero sara',
+    'eres especial y te quiero sara',
+    'eres especial te quiero mucho sara',
+    'eres especial te quiero sarita'
+  ].map(normalize);
+  // Admit minor typos while still requiring the intended phrase.
+  function distance(a,b){
+    if(Math.abs(a.length-b.length)>3)return 4;
+    let previous=Array.from({length:b.length+1},(_,i)=>i);
+    for(let i=1;i<=a.length;i++){
+      const current=[i];
+      for(let j=1;j<=b.length;j++){
+        current[j]=Math.min(current[j-1]+1,previous[j]+1,
+          previous[j-1]+(a[i-1]===b[j-1]?0:1));
+      }
+      previous=current;
+    }
+    return previous[b.length];
+  }
+  function correct(value){
+    const text=normalize(value);
+    if(!text || text.length<20)return false;
+    return expected.some(phrase=>distance(text,phrase)<=3);
+  }
+  function getUntil(){
+    try{return Math.max(fallbackUntil,Number(localStorage.getItem(KEY))||0)}
+    catch(e){return fallbackUntil}
+  }
+  function setUntil(value){
+    fallbackUntil=value;
+    try{localStorage.setItem(KEY,String(value))}catch(e){}
+  }
+  function renderCooldown(){
+    const remaining=getUntil()-Date.now();
+    if(remaining<=0){
+      answer.disabled=false;
+      button.disabled=false;
+      feedback.textContent='';
+      return false;
+    }
+    answer.disabled=true;
+    button.disabled=true;
+    const total=Math.ceil(remaining/1000);
+    const h=String(Math.floor(total/3600)).padStart(2,'0');
+    const m=String(Math.floor((total%3600)/60)).padStart(2,'0');
+    const s=String(total%60).padStart(2,'0');
+    feedback.textContent='Respuesta incorrecta. Podrás volver a intentarlo en '+h+':'+m+':'+s+'.';
+    return true;
+  }
   form.addEventListener('submit',function(event){
     event.preventDefault();
-    const value=answer.value.toLowerCase().replace(/\s+/g,'');
-    if(value==='twostepsahead'||value==='2'){
+    if(renderCooldown())return;
+    if(correct(answer.value)){
       document.body.classList.add('unlocked');
       answer.value='';
       document.getElementById('k').focus();
     }else{
-      feedback.textContent='Ese no es el mensaje correcto. Inténtalo otra vez.';
-      answer.select();
+      setUntil(Date.now()+DAY);
+      answer.value='';
+      renderCooldown();
     }
   });
+  renderCooldown();
+  setInterval(()=>{if(getUntil()>0)renderCooldown()},1000);
 })();
 </script>
 </body>
