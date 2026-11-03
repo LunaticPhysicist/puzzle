@@ -59,7 +59,9 @@
   .gate-submit{cursor:pointer;margin-top:13px;width:100%;padding:16px;border:0;border-radius:12px;background:#e7dbc3;color:#17202a;font:600 1rem system-ui}
   .gate-submit:hover{background:#fff0d3}
   .gate-submit:disabled,.gate-input:disabled{opacity:.5;cursor:not-allowed}
-  .gate-feedback{min-height:1.5rem;margin:15px 0 0;color:#ffc1bd;font-size:.87rem}
+  .gate-feedback{min-height:1.5rem;margin:15px 0 0;color:#ffc1bd;font-size:.9rem;line-height:1.7}
+  .gate-card:has(.gate-input:disabled){border-color:rgba(255,110,110,.35)}
+  .gate-card:has(.gate-input:disabled) .gate-icon{color:#ff9a94}
   body.unlocked .gate{display:none}
   @media (prefers-reduced-motion:no-preference){.gate-card{animation:gate-in .65s ease both}@keyframes gate-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}}
 </style>
@@ -70,10 +72,10 @@
     <span class="gate-icon" aria-hidden="true">✧</span>
     <div class="gate-kicker">Acertijo · 01</div>
     <h2 id="gate-title">Inserte el mensaje del acertijo 1 primero</h2>
-    <p class="gate-desc">La siguiente página permanece oculta hasta que descubras la respuesta.</p>
+    <p class="gate-desc">¿De verdad puedes resolverlo? Puedes rendirte. No tienes que hacerlo si no puedes.</p>
     <form id="gate-form">
       <input class="gate-input" id="gate-answer" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Mensaje del acertijo 1" placeholder="Escribe aquí tu respuesta…" required>
-      <button class="gate-submit" type="submit">Desbloquear</button>
+      <button class="gate-submit" type="submit">Demostrar que puedo</button>
       <p class="gate-feedback" id="gate-feedback" role="status" aria-live="polite"></p>
     </form>
   </div>
@@ -125,6 +127,9 @@
   const feedback=document.getElementById('gate-feedback');
   const button=form.querySelector('button');
   const KEY='puzzle_acertijo_1_cooldown_until';
+  const COUNT_KEY='puzzle_acertijo_1_failures';
+  const durations=[24,48,72];
+  let fallbackCount=0;
   const DAY=24*60*60*1000;
   let fallbackUntil=0;
   const normalize=text=>text.toLowerCase().normalize('NFD')
@@ -165,6 +170,16 @@
     fallbackUntil=value;
     try{localStorage.setItem(KEY,String(value))}catch(e){}
   }
+  function getCount(){
+    try{return Math.max(fallbackCount,Number(localStorage.getItem(COUNT_KEY))||0)}
+    catch(e){return fallbackCount}
+  }
+  function incrementCount(){
+    const next=getCount()+1;
+    fallbackCount=next;
+    try{localStorage.setItem(COUNT_KEY,String(next))}catch(e){}
+    return next;
+  }
   function renderCooldown(){
     const remaining=getUntil()-Date.now();
     if(remaining<=0){
@@ -179,7 +194,13 @@
     const h=String(Math.floor(total/3600)).padStart(2,'0');
     const m=String(Math.floor((total%3600)/60)).padStart(2,'0');
     const s=String(total%60).padStart(2,'0');
-    feedback.textContent='Respuesta incorrecta. Podrás volver a intentarlo en '+h+':'+m+':'+s+'.';
+    const cycle=((getCount()||1)-1)%3;
+    const taunts=[
+      '¿Ya te rendiste? No tienes que hacerlo si no puedes.',
+      'Otra vez fallaste. Parece que esto no es para ti.',
+      'Tres intentos, tres derrotas. Quizá deberías rendirte.'
+    ];
+    feedback.textContent=taunts[cycle]+' Próximo intento en '+h+':'+m+':'+s+'.';
     return true;
   }
   form.addEventListener('submit',function(event){
@@ -190,7 +211,9 @@
       answer.value='';
       document.getElementById('k').focus();
     }else{
-      setUntil(Date.now()+DAY);
+      const failure=incrementCount();
+      const hours=durations[(failure-1)%durations.length];
+      setUntil(Date.now()+hours*60*60*1000);
       answer.value='';
       renderCooldown();
     }
