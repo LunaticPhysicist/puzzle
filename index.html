@@ -72,10 +72,10 @@
     <span class="gate-icon" aria-hidden="true">✧</span>
     <div class="gate-kicker">Acertijo · 01</div>
     <h2 id="gate-title">Inserte el mensaje del acertijo 1 primero</h2>
-    <p class="gate-desc">Tranquila, en serio, no tienes que hacerlo. No me pondré bravo si no lo haces. Es tu problema… aunque quizá puedas demostrar que me equivoco.</p>
+    <p class="gate-desc">Tranquila, no tienes que hacerlo. No me voy a molestar si lo dejas ahí. Si no puedes resolverlo, tampoco pasa nada. Es tu problema, no el mío.</p>
     <form id="gate-form">
       <input class="gate-input" id="gate-answer" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Mensaje del acertijo 1" placeholder="Escribe aquí tu respuesta…" required>
-      <button class="gate-submit" type="submit">Demostrar que puedo</button>
+      <button class="gate-submit" type="submit">Probar</button>
       <p class="gate-feedback" id="gate-feedback" role="status" aria-live="polite"></p>
     </form>
   </div>
@@ -128,6 +128,8 @@
   const button=form.querySelector('button');
   const KEY='puzzle_acertijo_1_cooldown_until';
   const COUNT_KEY='puzzle_acertijo_1_failures';
+  const ATTEMPT_KEY='puzzle_acertijo_1_round_attempts';
+  let fallbackAttempts=0;
   const durations=[24,48,72];
   let fallbackCount=0;
   const DAY=24*60*60*1000;
@@ -180,12 +182,20 @@
     try{localStorage.setItem(COUNT_KEY,String(next))}catch(e){}
     return next;
   }
+  function getAttempts(){
+    try{return Math.max(fallbackAttempts,Number(localStorage.getItem(ATTEMPT_KEY))||0)}
+    catch(e){return fallbackAttempts}
+  }
+  function setAttempts(value){
+    fallbackAttempts=value;
+    try{localStorage.setItem(ATTEMPT_KEY,String(value))}catch(e){}
+  }
   function renderCooldown(){
     const remaining=getUntil()-Date.now();
     if(remaining<=0){
       answer.disabled=false;
       button.disabled=false;
-      feedback.textContent='';
+      feedback.textContent=getAttempts()===1?'Respuesta incorrecta. Te queda un intento antes del bloqueo.':'';
       return false;
     }
     answer.disabled=true;
@@ -211,11 +221,19 @@
       answer.value='';
       document.getElementById('k').focus();
     }else{
-      const failure=incrementCount();
-      const hours=durations[(failure-1)%durations.length];
-      setUntil(Date.now()+hours*60*60*1000);
+      const attempts=getAttempts()+1;
       answer.value='';
-      renderCooldown();
+      if(attempts<2){
+        setAttempts(attempts);
+        feedback.textContent='Respuesta incorrecta. Te queda un intento antes del bloqueo.';
+        answer.focus();
+      }else{
+        setAttempts(0);
+        const failure=incrementCount();
+        const hours=durations[(failure-1)%durations.length];
+        setUntil(Date.now()+hours*60*60*1000);
+        renderCooldown();
+      }
     }
   });
   renderCooldown();
