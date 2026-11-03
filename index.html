@@ -44,9 +44,39 @@
   @keyframes fade{from{opacity:.15; filter:blur(3px)} to{opacity:1; filter:none}}
   @media (prefers-reduced-motion: reduce){.rev{animation:none}}
   @media (max-width:480px){body{font-size:17.5px; padding-block:40px 96px}}
+
+  /* Pantalla de acceso al primer acertijo */
+  body:not(.unlocked){padding:0;min-height:100svh;overflow:hidden}
+  body:not(.unlocked) main{display:none}
+  .gate{min-height:100svh;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 15%,#263445 0%,#111923 46%,#0a1018 100%);color:#ecf0f5;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  .gate-card{width:min(100%,440px);text-align:center;padding:45px 28px;border:1px solid rgba(255,255,255,.13);border-radius:24px;background:rgba(255,255,255,.045);box-shadow:0 28px 90px rgba(0,0,0,.23)}
+  .gate-icon{font-size:2rem;display:block;margin-bottom:21px}
+  .gate-kicker{font-size:.72rem;letter-spacing:.24em;text-transform:uppercase;color:#a8b4c3;margin-bottom:15px}
+  .gate h2{font-size:clamp(1.6rem,5vw,2.2rem);line-height:1.2;letter-spacing:-.035em;font-weight:500;margin:0 0 16px}
+  .gate-desc{font-size:.93rem;line-height:1.7;color:#aebccc;margin:0 0 28px}
+  .gate-input{display:block;width:100%;background:#111a25;color:#fff;border:1px solid #506071;border-radius:12px;padding:16px 17px;font:inherit;font-size:1rem;outline:none}
+  .gate-input:focus{border-color:#d9c8a6;box-shadow:0 0 0 3px rgba(217,200,166,.14)}
+  .gate-submit{cursor:pointer;margin-top:13px;width:100%;padding:16px;border:0;border-radius:12px;background:#e7dbc3;color:#17202a;font:600 1rem system-ui}
+  .gate-submit:hover{background:#fff0d3}
+  .gate-feedback{min-height:1.5rem;margin:15px 0 0;color:#ffc1bd;font-size:.87rem}
+  body.unlocked .gate{display:none}
+  @media (prefers-reduced-motion:no-preference){.gate-card{animation:gate-in .65s ease both}@keyframes gate-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}}
 </style>
 </head>
 <body>
+<section class="gate" id="gate" aria-labelledby="gate-title">
+  <div class="gate-card">
+    <span class="gate-icon" aria-hidden="true">✧</span>
+    <div class="gate-kicker">Acertijo · 01</div>
+    <h2 id="gate-title">Inserte el mensaje del acertijo 1 primero</h2>
+    <p class="gate-desc">La siguiente página permanece oculta hasta que descubras la respuesta.</p>
+    <form id="gate-form">
+      <input class="gate-input" id="gate-answer" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Mensaje del acertijo 1" placeholder="Escribe aquí tu respuesta…" required>
+      <button class="gate-submit" type="submit">Desbloquear</button>
+      <p class="gate-feedback" id="gate-feedback" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</section>
 <main>
   <h1>Hola Sari,</h1>
   <div id="t"></div>
@@ -85,6 +115,25 @@
     else if (!ok && open){ open = false; draw(0); }
   });
   draw(0);
+})();
+</script>
+<script>
+(function(){
+  const form=document.getElementById('gate-form');
+  const answer=document.getElementById('gate-answer');
+  const feedback=document.getElementById('gate-feedback');
+  form.addEventListener('submit',function(event){
+    event.preventDefault();
+    const value=answer.value.toLowerCase().replace(/\s+/g,'');
+    if(value==='twostepsahead'||value==='2'){
+      document.body.classList.add('unlocked');
+      answer.value='';
+      document.getElementById('k').focus();
+    }else{
+      feedback.textContent='Ese no es el mensaje correcto. Inténtalo otra vez.';
+      answer.select();
+    }
+  });
 })();
 </script>
 </body>
